@@ -16,7 +16,7 @@ void SpriteRenderSystem::SpinUp()
 	glGenVertexArrays(1, &m_VAO);
 	glBindVertexArray(m_VAO);
 
-    auto flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    auto flags = GL_MAP_WRITE_BIT;// | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 
 	glGenBuffers(1, &m_StaticMeshVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, m_StaticMeshVBO);
@@ -31,7 +31,6 @@ void SpriteRenderSystem::SpinUp()
     
     glGenBuffers(1, &m_InstanceQuadInfoVBO);
     glBindBuffer(GL_ARRAY_BUFFER, m_InstanceQuadInfoVBO);
-    glBufferStorage(GL_ARRAY_BUFFER, ms_BufferSize, 0, flags);
 	glBufferData(GL_ARRAY_BUFFER, ms_BufferSize, nullptr, GL_STREAM_DRAW);
 
     const UInt32 attributeSizes[]   = { 3,        2,        4,        1,               1,        2  };
@@ -45,8 +44,6 @@ void SpriteRenderSystem::SpinUp()
         glVertexAttribDivisor(index, 1);
     }
 
-	m_Data = reinterpret_cast<float*>(glMapBufferRange(GL_ARRAY_BUFFER, 0, ms_BufferSize, flags));
-	assert(m_Data != nullptr);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glEnable(GL_TEXTURE_2D);
@@ -68,13 +65,16 @@ void SpriteRenderSystem::OnRender()
 	glBindVertexArray(m_VAO);
     
 	assert(m_StaticMeshVBO != 0);
-	glBindBuffer(GL_ARRAY_BUFFER, m_StaticMeshVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_InstanceQuadInfoVBO);
 
     // get a view of all the entities and their sprite components
     auto entities = Engine::Registry().view<Sprite>();
     std::size_t size = sizeof(Sprite) * entities.size();
-    
+
+    m_Data = reinterpret_cast<float*>(glMapBufferRange(GL_ARRAY_BUFFER, 0, ms_BufferSize, GL_MAP_WRITE_BIT));
+    assert(m_Data != nullptr);
     memcpy_s(m_Data, size, entities.raw(), size);
+    glUnmapBuffer(GL_ARRAY_BUFFER);
 
     glDrawArraysInstanced(GL_TRIANGLES, 0, ms_VertexCount, (GLsizei)entities.size());
 
